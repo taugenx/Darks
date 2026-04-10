@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Darts">
+<meta name="theme-color" content="#0a0a0c">
+<title>🎯 Darts Score Counter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- PWA Manifest inline -->
+
+<script>
+const manifest = {
+  name: "Darts Score Counter",
+  short_name: "Darts",
+  start_url: ".",
+  display: "standalone",
+  background_color: "#0a0a0c",
+  theme_color: "#0a0a0c",
+  orientation: "portrait",
+  icons: [
+    { src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a0c' rx='20'/><text y='72' x='10' font-size='70'>🎯</text></svg>", sizes: "192x192", type: "image/svg+xml" },
+    { src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a0c' rx='20'/><text y='72' x='10' font-size='70'>🎯</text></svg>", sizes: "512x512", type: "image/svg+xml" }
+  ]
+};
+const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+const manifestURL = URL.createObjectURL(blob);
+document.write('<link rel="manifest" href="' + manifestURL + '">');
+</script>
+
+<style>
+  :root {
+    --red: #e5383b;
+    --red-dark: #c81d25;
+    --gold: #ffd700;
+    --bg: #0a0a0c;
+    --card: rgba(255,255,255,0.05);
+    --card-active: rgba(229,56,59,0.12);
+    --border: rgba(255,255,255,0.08);
+    --border-active: rgba(229,56,59,0.4);
+    --text: #ffffff;
+    --text-dim: #666;
+    --text-mid: #aaa;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%; overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    overscroll-behavior: none;
+  }
+
+  #app {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    overflow: hidden;
+  }
+
+  .screen {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px;
+    padding-bottom: 24px;
+  }
+
+  /* Typography */
+  .f-bebas { font-family: 'Bebas Neue', sans-serif; }
+
+  /* Buttons */
+  button {
+    cursor: pointer; border: none; outline: none;
+    font-family: 'Bebas Neue', sans-serif;
+    transition: transform 0.08s, opacity 0.08s;
+    -webkit-user-select: none; user-select: none;
+  }
+  button:active { transform: scale(0.95); opacity: 0.85; }
+
+  /* Setup Screen */
+  .setup-title {
+    text-align: center;
+    padding: 16px 0 24px;
+  }
+  .setup-title .big {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 52px;
+    letter-spacing: 6px;
+    color: var(--red);
+    text-shadow: 0 0 40px rgba(229,56,59,0.5);
+    line-height: 1;
+  }
+  .setup-title .sub {
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--text-dim);
+    font-family: 'Bebas Neue', sans-serif;
+    margin-top: 4px;
+  }
+
+  .section-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  .section { margin-bottom: 20px; }
+
+  /* Mode grid */
+  .mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .mode-btn {
+    padding: 12px 10px;
+    border-radius: 12px;
+    background: var(--card);
+    border: 2px solid transparent;
+    text-align: left;
+    transition: all 0.15s;
+  }
+  .mode-btn.active {
+    background: rgba(229,56,59,0.18);
+    border-color: rgba(229,56,59,0.5);
+  }
+  .mode-btn .icon { font-size: 20px; }
+  .mode-btn .label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    color: var(--text-mid);
+    letter-spacing: 1px;
+    display: block;
+    margin-top: 2px;
+  }
+  .mode-btn.active .label { color: var(--text); }
+  .mode-btn .desc { font-size: 10px; color: var(--text-dim); }
+
+  /* X01 options */
+  .opts-box {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .btn-row { display: flex; gap: 8px; }
+  .opt-btn {
+    flex: 1; padding: 10px 0; border-radius: 10px;
+    background: rgba(255,255,255,0.07);
+    color: var(--text-mid);
+    font-size: 18px; letter-spacing: 1px;
+  }
+  .opt-btn.active {
+    background: var(--red);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(229,56,59,0.4);
+  }
+  .opt-btn-sm {
+    flex: 1; padding: 8px 0; border-radius: 10px;
+    background: rgba(255,255,255,0.05);
+    color: var(--text-dim);
+    font-size: 11px; letter-spacing: 0.5px;
+    font-family: 'DM Mono', monospace;
+  }
+  .opt-btn-sm.active {
+    background: rgba(229,56,59,0.25);
+    color: var(--red);
+  }
+
+  /* Players */
+  .player-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .player-input {
+    flex: 1; background: rgba(255,255,255,0.07);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 11px 14px;
+    color: var(--text); font-size: 15px;
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 1px; outline: none;
+  }
+  .player-input:focus { border-color: rgba(229,56,59,0.4); }
+  .add-btn {
+    background: rgba(229,56,59,0.2);
+    border-radius: 8px; padding: 8px 14px;
+    color: var(--red); font-size: 14px;
+  }
+  .del-btn {
+    background: rgba(255,80,80,0.15);
+    border-radius: 10px; padding: 0 14px;
+    color: #ff5050; font-size: 20px;
+    min-width: 44px; height: 44px;
+  }
+
+  .start-btn {
+    width: 100%; padding: 17px 0;
+    background: linear-gradient(135deg, var(--red), var(--red-dark));
+    border-radius: 14px; color: #fff;
+    font-size: 26px; letter-spacing: 2px;
+    box-shadow: 0 8px 28px rgba(229,56,59,0.35);
+    margin-top: 8px;
+  }
+
+  /* Game screens */
+  .game-header {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .back-btn {
+    background: rgba(255,255,255,0.07);
+    border-radius: 10px; padding: 8px 16px;
+    color: var(--text-mid); font-size: 18px;
+  }
+  .game-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px; letter-spacing: 2px;
+  }
+
+  /* Score cards */
+  .score-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .score-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .score-grid.four { grid-template-columns: 1fr 1fr; }
+
+  .score-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 14px;
+    transition: all 0.2s;
+  }
+  .score-card.active {
+    background: var(--card-active);
+    border-color: var(--border-active);
+    box-shadow: 0 0 20px rgba(229,56,59,0.15);
+  }
+  .score-card.eliminated { opacity: 0.25; }
+  .card-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px; letter-spacing: 1px;
+    color: var(--text-dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .score-card.active .card-name { color: var(--red); }
+  .card-score {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 48px; line-height: 1;
+    color: var(--text-dim);
+    margin: 2px 0;
+  }
+  .score-card.active .card-score { color: var(--text); }
+  .card-sub { font-size: 10px; color: #444; font-family: 'DM Mono', monospace; }
+  .card-badge {
+    display: inline-block;
+    font-size: 10px; color: var(--gold);
+    background: rgba(255,215,0,0.1);
+    border-radius: 6px; padding: 2px 7px;
+    font-family: 'DM Mono', monospace;
+    float: right;
+  }
+
+  /* Checkout hint */
+  .checkout-hint {
+    background: rgba(255,215,0,0.07);
+    border: 1px solid rgba(255,215,0,0.2);
+    border-radius: 10px; padding: 8px 14px;
+    margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .checkout-hint span {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px; color: var(--gold); letter-spacing: 1px;
+  }
+
+  /* NumPad */
+  .numpad { display: flex; flex-direction: column; gap: 7px; }
+
+  .mod-row { display: flex; gap: 6px; }
+  .mod-btn {
+    flex: 1; padding: 9px 0; border-radius: 10px;
+    background: rgba(255,255,255,0.07);
+    color: var(--text-dim); font-size: 17px; letter-spacing: 1px;
+  }
+  .mod-btn.active {
+    background: var(--red);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(229,56,59,0.5);
+  }
+
+  .num-row { display: flex; gap: 6px; }
+  .num-btn {
+    flex: 1; padding: 13px 0; border-radius: 10px;
+    background: rgba(255,255,255,0.06);
+    color: var(--text); font-size: 22px; letter-spacing: 1px;
+  }
+  .num-btn.miss { background: rgba(255,100,50,0.12); color: #ff6432; }
+  .num-btn.bull { background: rgba(255,200,0,0.12); color: var(--gold); }
+
+  .action-row { display: flex; gap: 6px; }
+  .undo-btn {
+    flex: 1; padding: 12px 0; border-radius: 10px;
+    background: rgba(255,200,0,0.1); color: var(--gold); font-size: 17px;
+  }
+  .bust-btn {
+    flex: 1; padding: 12px 0; border-radius: 10px;
+    background: rgba(255,80,80,0.12); color: #ff5050; font-size: 17px;
+  }
+  .confirm-btn {
+    flex: 2; padding: 12px 0; border-radius: 10px;
+    background: linear-gradient(135deg, var(--red), var(--red-dark));
+    color: #fff; font-size: 20px;
+    box-shadow: 0 4px 16px rgba(229,56,59,0.35);
+  }
+
+  .throw-preview {
+    display: flex; gap: 6px; justify-content: center; margin-top: 4px;
+  }
+  .throw-chip {
+    background: rgba(229,56,59,0.2);
+    border: 1px solid rgba(229,56,59,0.3);
+    border-radius: 8px; padding: 4px 12px;
+    color: var(--red); font-family: 'Bebas Neue', sans-serif; font-size: 17px;
+  }
+  .throw-chip.empty {
+    background: rgba(255,255,255,0.03);
+    border-color: rgba(255,255,255,0.07);
+    color: #333; padding: 4px 22px;
+  }
+
+  /* Cricket board */
+  .cricket-table { width: 100%; border-collapse: collapse; }
+  .cricket-table th {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 12px; color: var(--text-dim);
+    padding: 4px 6px; text-align: center;
+  }
+  .cricket-table th.active-col { color: var(--red); }
+  .cricket-table td {
+    text-align: center; padding: 5px 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .cricket-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 19px; color: var(--text);
+  }
+  .cricket-mark {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px; color: var(--text-mid);
+  }
+  .cricket-mark.closed { color: var(--red); }
+  .cricket-pts {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px; color: var(--text-dim);
+  }
+  .cricket-pts.active { color: var(--text); }
+  tr.row-closed { opacity: 0.3; }
+
+  /* Around Clock progress */
+  .progress-bar {
+    background: rgba(255,255,255,0.07);
+    border-radius: 8px; height: 5px;
+    margin-bottom: 12px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--red), #ff6b6b);
+    border-radius: 8px;
+    transition: width 0.3s;
+  }
+
+  /* Halftime round display */
+  .round-center { text-align: center; margin-bottom: 14px; }
+  .round-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px; letter-spacing: 3px; color: var(--text-dim);
+  }
+  .round-target {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 52px; color: var(--gold);
+    text-shadow: 0 0 24px rgba(255,215,0,0.4);
+    line-height: 1;
+  }
+  .round-note { font-size: 11px; color: #555; margin-top: 2px; }
+
+  /* Killer lives */
+  .killer-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px 14px;
+    transition: all 0.2s;
+  }
+  .killer-card.active {
+    background: var(--card-active);
+    border-color: var(--border-active);
+  }
+  .killer-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px; letter-spacing: 1px; color: var(--text-dim);
+  }
+  .killer-card.active .killer-name { color: var(--red); }
+  .lives-row { display: flex; gap: 3px; margin-top: 6px; flex-wrap: wrap; }
+  .killer-badge {
+    font-size: 10px; color: var(--red);
+    font-family: 'Bebas Neue', sans-serif;
+    margin-top: 4px;
+  }
+
+  /* Win screen */
+  .win-screen {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  .win-trophy { font-size: 80px; margin-bottom: 8px; }
+  .win-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px; letter-spacing: 4px; color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .win-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 44px; color: var(--gold);
+    text-shadow: 0 0 40px rgba(255,215,0,0.5);
+    margin-bottom: 24px;
+    line-height: 1.1;
+  }
+  .stats-row {
+    display: flex; justify-content: space-between;
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .stats-row span:first-child { font-family: 'Bebas Neue', sans-serif; color: var(--text-dim); font-size: 16px; }
+  .stats-row span:last-child { font-family: 'Bebas Neue', sans-serif; color: var(--text); font-size: 16px; }
+  .new-game-btn {
+    margin-top: 28px;
+    padding: 17px 48px;
+    background: linear-gradient(135deg, var(--red), var(--red-dark));
+    border-radius: 14px; color: #fff;
+    font-size: 24px; letter-spacing: 2px;
+    box-shadow: 0 8px 28px rgba(229,56,59,0.35);
+  }
+
+  /* Assign phase */
+  .assign-center { text-align: center; margin-bottom: 16px; }
+  .assign-title { font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 3px; color: var(--text-dim); }
+  .assign-player { font-family: 'Bebas Neue', sans-serif; font-size: 30px; color: var(--text); }
+  .assign-note { font-size: 12px; color: #555; }
+  .assigned-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .assigned-chip {
+    background: rgba(229,56,59,0.15);
+    border-radius: 8px; padding: 4px 12px;
+    font-family: 'Bebas Neue', sans-serif; font-size: 14px; color: var(--red);
+  }
+
+  /* Backgrounds */
+  body {
+    background-image:
+      radial-gradient(ellipse at 15% 15%, rgba(229,56,59,0.06) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 85%, rgba(5,5,20,0.8) 0%, transparent 55%);
+  }
+
+  /* Scrollbar hide */
+  .screen::-webkit-scrollbar { display: none; }
+  .screen { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+
+</head>
+<body>
+<div id="app">
+  <div class="screen" id="screen"></div>
+</div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────────────────────
+const state = {
+  screen: 'setup',
+  mode: 'x01',
+  players: ['Spieler 1', 'Spieler 2'],
+  x01Start: 501,
+  x01Out: 'double',
+  game: null,
+};
+
+// ── CHECKOUT TABLE ─────────────────────────────────────────────────────────────
+const CHECKOUT = {
+  170:"T20 T20 Bull",167:"T20 T19 Bull",164:"T20 T18 Bull",161:"T20 T17 Bull",
+  160:"T20 T20 D20",158:"T20 T20 D19",157:"T20 T19 D20",156:"T20 T20 D18",
+  155:"T20 T19 D19",154:"T20 T18 D20",153:"T20 T19 D18",152:"T20 T20 D16",
+  151:"T20 T17 D20",150:"T20 T18 D18",149:"T20 T19 D16",148:"T20 T20 D14",
+  147:"T20 T17 D18",146:"T20 T18 D16",145:"T20 T19 D14",144:"T20 T20 D12",
+  143:"T20 T17 D16",142:"T20 T14 D20",141:"T20 T19 D12",140:"T20 T20 D10",
+  139:"T20 T13 D20",138:"T20 T18 D12",137:"T20 T19 D10",136:"T20 T20 D8",
+  135:"T20 T17 D12",134:"T20 T14 D16",133:"T20 T19 D8",132:"T20 T16 D12",
+  131:"T20 T13 D16",130:"T20 T18 D8",129:"T19 T16 D12",128:"T20 T20 D4",
+  127:"T20 T17 D8",126:"T19 T19 D6",125:"T20 T15 D10",124:"T20 T16 D8",
+  123:"T20 T13 D12",122:"T18 T18 D7",121:"T20 T11 D14",120:"T20 S20 D20",
+  119:"T19 T12 D13",118:"T20 S18 D20",117:"T20 S17 D20",116:"T20 S16 D20",
+  115:"T20 S15 D20",114:"T20 S14 D20",113:"T20 S13 D20",112:"T20 S12 D20",
+  111:"T20 S11 D20",110:"T20 S18 D16",109:"T20 S9 D20",108:"T20 S16 D16",
+  107:"T19 S18 D16",106:"T20 S14 D16",105:"T20 S13 D16",104:"T20 S12 D16",
+  103:"T20 S11 D16",102:"T20 S10 D16",101:"T20 S9 D16",100:"T20 D20",
+  99:"T19 T10 D16",98:"T20 D19",97:"T19 D20",96:"T20 D18",95:"T19 D19",
+  94:"T18 D20",93:"T19 D18",92:"T20 D16",91:"T17 D20",90:"T18 D18",
+  89:"T19 D16",88:"T16 D20",87:"T17 D18",86:"T18 D16",85:"T15 D20",
+  84:"T20 D12",83:"T17 D16",82:"T14 D20",81:"T19 D12",80:"T16 D16",
+  79:"T13 D20",78:"T18 D12",77:"T15 D16",76:"T20 D8",75:"T13 D18",
+  74:"T14 D16",73:"T19 D8",72:"T16 D12",71:"T13 D16",70:"T18 D8",
+  69:"T19 D6",68:"T20 D4",67:"T17 D8",66:"T10 D18",65:"T19 D4",
+  64:"T16 D8",63:"T13 D12",62:"T10 D16",61:"T15 D8",60:"S20 D20",
+  59:"S19 D20",58:"S18 D20",57:"S17 D20",56:"T16 D4",55:"S15 D20",
+  54:"S14 D20",53:"S13 D20",52:"S12 D20",51:"S11 D20",50:"S18 D16",
+  49:"S9 D20",48:"S16 D16",47:"S15 D16",46:"S14 D16",45:"S5 D20",
+  44:"S12 D16",43:"S11 D16",42:"S10 D16",41:"S9 D16",40:"D20",
+  39:"S7 D16",38:"D19",37:"S5 D16",36:"D18",35:"S3 D16",34:"D17",
+  33:"S1 D16",32:"D16",31:"S7 D12",30:"D15",29:"S5 D12",28:"D14",
+  27:"S3 D12",26:"D13",25:"S25",24:"D12",22:"D11",20:"D10",
+  18:"D9",16:"D8",14:"D7",12:"D6",10:"D5",8:"D4",6:"D3",4:"D2",2:"D1"
+};
+
+const CRICKET_NUMS = [20,19,18,17,16,15,25];
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function render() {
+  const el = document.getElementById('screen');
+  switch(state.screen) {
+    case 'setup': el.innerHTML = renderSetup(); bindSetup(); break;
+    case 'x01':   el.innerHTML = renderX01();   bindX01();   break;
+    case 'cricket': el.innerHTML = renderCricket(); bindCricket(); break;
+    case 'aroundClock': el.innerHTML = renderAroundClock(); bindAroundClock(); break;
+    case 'halftime': el.innerHTML = renderHalftime(); bindHalftime(); break;
+    case 'shanghai': el.innerHTML = renderShanghai(); bindShanghai(); break;
+    case 'killer': el.innerHTML = renderKiller(); bindKiller(); break;
+    case 'win': el.innerHTML = renderWin(); bindWin(); break;
+  }
+}
+
+// ── SETUP ─────────────────────────────────────────────────────────────────────
+const MODES = [
+  {key:'x01',    icon:'🎯', label:'X01',          desc:'501 / 301 / 701'},
+  {key:'cricket',icon:'🦗', label:'Cricket',      desc:'Standard Cricket'},
+  {key:'cutThroat',icon:'⚔️',label:'Cut-Throat', desc:'Cricket Variante'},
+  {key:'aroundClock',icon:'🕐',label:'Around Clock',desc:'1–20 der Reihe nach'},
+  {key:'halftime',icon:'⏱️',label:'Halftime',    desc:'Runden-Challenge'},
+  {key:'shanghai',icon:'🏙️',label:'Shanghai',   desc:'1–7, Shanghai=Win'},
+  {key:'killer',  icon:'💀',label:'Killer',       desc:'5 Leben, eigene Zahl'},
+];
+
+function renderSetup() {
+  const playersHtml = state.players.map((p,i) => `
+    <div class="player-row">
+      <input class="player-input" data-idx="${i}" value="${esc(p)}" maxlength="20">
+      ${state.players.length > 2 ? `<button class="del-btn" data-del="${i}">×</button>` : ''}
+    </div>`).join('');
+
+  const x01opts = state.mode === 'x01' ? `
+    <div class="section opts-box">
+      <div class="section-label" style="margin-bottom:8px">X01 OPTIONEN</div>
+      <div class="btn-row" style="margin-bottom:8px">
+        ${[301,501,701].map(v=>`<button class="opt-btn ${state.x01Start===v?'active':''}" data-start="${v}">${v}</button>`).join('')}
+      </div>
+      <div class="btn-row">
+        ${[['straight','Straight Out'],['double','Double Out'],['master','Master Out']].map(([v,l])=>
+          `<button class="opt-btn-sm ${state.x01Out===v?'active':''}" data-out="${v}">${l}</button>`
+        ).join('')}
+      </div>
+    </div>` : '';
+
+  return `
+    <div class="setup-title">
+      <div class="big">🎯 DARTS</div>
+      <div class="sub">SCORE COUNTER PRO</div>
+    </div>
+    <div class="section">
+      <div class="section-label">SPIELMODUS</div>
+      <div class="mode-grid">
+        ${MODES.map(m=>`
+          <button class="mode-btn ${state.mode===m.key?'active':''}" data-mode="${m.key}">
+            <span class="icon">${m.icon}</span>
+            <span class="label">${m.label}</span>
+            <span class="desc">${m.desc}</span>
+          </button>`).join('')}
+      </div>
+    </div>
+    ${x01opts}
+    <div class="section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="section-label" style="margin:0">SPIELER (${state.players.length}/8)</div>
+        ${state.players.length < 8 ? '<button class="add-btn" id="addPlayer">+ ADD</button>' : ''}
+      </div>
+      ${playersHtml}
+    </div>
+    <button class="start-btn">🎯 SPIEL STARTEN</button>
+  `;
+}
+
+function bindSetup() {
+  document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { state.mode = b.dataset.mode; render(); });
+  document.querySelectorAll('[data-start]').forEach(b => b.onclick = () => { state.x01Start = +b.dataset.start; render(); });
+  document.querySelectorAll('[data-out]').forEach(b => b.onclick = () => { state.x01Out = b.dataset.out; render(); });
+  document.querySelectorAll('.player-input').forEach(inp => inp.oninput = e => { state.players[+e.target.dataset.idx] = e.target.value; });
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { state.players.splice(+b.dataset.del,1); render(); });
+  const addBtn = document.getElementById('addPlayer');
+  if (addBtn) addBtn.onclick = () => { state.players.push(`Spieler ${state.players.length+1}`); render(); };
+  document.querySelector('.start-btn').onclick = startGame;
+}
+
+function startGame() {
+  const n = state.players.length;
+  const g = {};
+  if (state.mode === 'x01') {
+    g.scores = state.players.map(() => state.x01Start);
+    g.stats  = state.players.map(() => ({darts:0, rounds:0, total:0}));
+  } else if (state.mode === 'cricket' || state.mode === 'cutThroat') {
+    g.marks = state.players.map(() => Object.fromEntries(CRICKET_NUMS.map(n=>[n,0])));
+    g.pts   = state.players.map(() => 0);
+  } else if (state.mode === 'aroundClock') {
+    g.targets = state.players.map(() => 1);
+  } else if (state.mode === 'halftime') {
+    g.ROUNDS = [{l:'15',t:15},{l:'16',t:16},{l:'DBull',t:50},{l:'17',t:17},{l:'18',t:18},{l:'19',t:19},{l:'20',t:20},{l:'Bull',t:25}];
+    g.scores = state.players.map(() => 0);
+    g.roundData = state.players.map(() => []);
+    g.roundIdx = 0;
+  } else if (state.mode === 'shanghai') {
+    g.round = 1;
+    g.scores = state.players.map(() => 0);
+  } else if (state.mode === 'killer') {
+    g.phase = 'assign';
+    g.killerNums = {};
+    g.lives = state.players.map(() => 5);
+    g.isKiller = state.players.map(() => false);
+  }
+  g.currentPlayer = 0;
+  g.throws = [];
+  g.history = [];
+  g.mod = 'S';
+  state.game = g;
+  state.screen = state.mode === 'cutThroat' ? 'cricket' : state.mode;
+  render();
+}
+
+// ── NUMPAD HTML ───────────────────────────────────────────────────────────────
+function numpadHtml() {
+  const g = state.game;
+  const rows = [['1','2','3'],['4','5','6'],['7','8','9'],['Miss','0','Bull']];
+  const modLabels = {S:'Single', D:'Double', T:'Triple'};
+  const throwsHtml = [0,1,2].map(i => {
+    const t = g.throws[i];
+    return t ? `<span class="throw-chip">${t.label}: ${t.pts}</span>`
+             : `<span class="throw-chip empty">—</span>`;
+  }).join('');
+
+  return `
+    <div class="numpad">
+      <div class="mod-row">
+        ${['S','D','T'].map(m=>`<button class="mod-btn ${g.mod===m?'active':''}" data-mod="${m}">${modLabels[m]}</button>`).join('')}
+      </div>
+      ${rows.map(row=>`
+        <div class="num-row">
+          ${row.map(k=>`<button class="num-btn ${k==='Miss'?'miss':k==='Bull'?'bull':''}" data-key="${k}">${k}</button>`).join('')}
+        </div>`).join('')}
+      <div class="action-row">
+        <button class="undo-btn" id="undoBtn">↩ Undo</button>
+        <button class="bust-btn" id="bustBtn">💥 Bust</button>
+        <button class="confirm-btn" id="confirmBtn">✓ Weiter</button>
+      </div>
+      <div class="throw-preview">${throwsHtml}</div>
+    </div>`;
+}
+
+function bindNumpad(onKey, onUndo, onBust, onConfirm) {
+  document.querySelectorAll('[data-mod]').forEach(b => b.onclick = () => { state.game.mod = b.dataset.mod; render(); });
+  document.querySelectorAll('[data-key]').forEach(b => b.onclick = () => onKey(b.dataset.key));
+  document.getElementById('undoBtn').onclick = onUndo;
+  document.getElementById('bustBtn').onclick = onBust;
+  document.getElementById('confirmBtn').onclick = onConfirm;
+}
+
+function keyToScore(key) {
+  const g = state.game;
+  if (key === 'Miss') return {pts:0, label:'Miss'};
+  if (key === 'Bull') {
+    const pts = g.mod === 'D' ? 50 : 25;
+    const label = g.mod === 'D' ? 'D-Bull' : 'Bull';
+    g.mod = 'S';
+    return {pts, label};
+  }
+  const n = parseInt(key);
+  const pts = g.mod === 'S' ? n : g.mod === 'D' ? n*2 : n*3;
+  const label = `${g.mod}${n}`;
+  g.mod = 'S';
+  return {pts, label};
+}
+
+function addThrow(key) {
+  const g = state.game;
+  if (g.throws.length >= 3) return;
+  const t = keyToScore(key);
+  g.throws.push(t);
+  render();
+}
+
+function nextPlayer() {
+  const g = state.game;
+  g.currentPlayer = (g.currentPlayer + 1) % state.players.length;
+  g.throws = [];
+  g.mod = 'S';
+}
+
+// ── X01 ───────────────────────────────────────────────────────────────────────
+function renderX01() {
+  const g = state.game;
+  const cp = g.currentPlayer;
+  const totalNow = g.throws.reduce((a,t)=>a+t.pts,0);
+  const remaining = g.scores[cp] - totalNow;
+  const checkout = remaining >= 2 && remaining <= 170 ? CHECKOUT[remaining] : null;
+  const n = state.players.length;
+  const gridClass = n >= 3 ? (n >= 5 ? 'score-grid four' : 'score-grid three') : 'score-grid';
+
+  const cards = state.players.map((p,i) => {
+    const avg = g.stats[i].rounds > 0 ? (g.stats[i].total / g.stats[i].rounds).toFixed(1) : '–';
+    return `<div class="score-card ${i===cp?'active':''}">
+      <div class="card-name">${i===cp?'▶ ':''}${esc(p)}</div>
+      <div class="card-score">${g.scores[i]}</div>
+      <div class="card-sub">Ø ${avg} · ${g.stats[i].darts} Darts</div>
+    </div>`;
+  }).join('');
+
+  const checkoutHtml = checkout ? `
+    <div class="checkout-hint">
+      <span>💡</span><span>CHECKOUT: ${checkout}</span>
+    </div>` : '';
+
+  return `
+    <div class="game-header">
+      <button class="back-btn" id="backBtn">←</button>
+      <div class="game-title">🎯 ${state.x01Start} · ${state.x01Out==='double'?'Double Out':state.x01Out==='master'?'Master Out':'Straight Out'}</div>
+      <div style="width:42px"></div>
+    </div>
+    <div class="${gridClass}">${cards}</div>
+    ${checkoutHtml}
+    ${numpadHtml()}`;
+}
+
+function bindX01() {
+  document.getElementById('backBtn').onclick = () => { state.screen='setup'; render(); };
+  bindNumpad(
+    key => {
+      const g = state.game;
+      if (g.throws.length >= 3) return;
+      const t = keyToScore(key);
+      g.throws.push(t);
+      if (g.throws.length === 3) { render(); setTimeout(confirmX01, 80); }
+      else render();
+    },
+    undoX01, bustX01, confirmX01
+  );
+}
+
+function confirmX01() {
+  const g = state.game;
+  const cp = g.currentPlayer;
+  const total = g.throws.reduce((a,t)=>a+t.pts,0);
+  const newScore = g.scores[cp] - total;
+  const lastThrow = g.throws[g.throws.length-1];
+
+  // Bust check
+  let bust = false;
+  if (newScore < 0) bust = true;
+  if (state.x01Out === 'double' && newScore === 0 && (!lastThrow || !lastThrow.label.startsWith('D'))) bust = true;
+  if (state.x01Out === 'double' && newScore === 1) bust = true;
+  if (state.x01Out === 'master' && newScore === 0 && lastThrow && !lastThrow.label.startsWith('D') && !lastThrow.label.startsWith('T')) bust = true;
+  if (state.x01Out === 'master' && newScore === 1) bust = true;
+
+  if (bust) { bustX01(); return; }
+
+  g.history.push({player:cp, score:g.scores[cp], throws:[...g.throws]});
+  g.stats[cp].darts += g.throws.length;
+  g.stats[cp].rounds++;
+  g.stats[cp].total += total;
+  g.scores[cp] = newScore;
+
+  if (newScore === 0) { state.screen='win'; state.game.winner=state.players[cp]; render(); return; }
+  nextPlayer();
+  render();
+}
+
+function bustX01() {
+  const g = state.game;
+  g.history.push({player:g.currentPlayer, score:g.scores[g.currentPlayer], throws:[...g.throws], bust:true});
+  nextPlayer();
+  render();
+}
+
+function undoX01() {
+  const g = state.game;
+  if (g.throws.length > 0) { g.throws.pop(); render(); return; }
+  if (!g.history.length) return;
+  const last = g.history.pop();
+  g.scores[last.player] = last.score;
+  g.currentPlayer = last.player;
+  g.throws = [];
+  g.stats[last.player].darts = Math.max(0, g.stats[last.player].darts - (last.throws||[]).length);
+  if (!last.bust) { g.stats[last.player].rounds = Math.max(0,g.stats[last.player].rounds-1); g.stats[last.player].total = Math.max(0,g.stats[last.player].total - last.throws.reduce((a,t)=>a+t.pts,0)); }
+  render();
+}
+
+// ── CRICKET ───────────────────────────────────────────────────────────────────
+function isClosed(num) {
+  return state.game.marks.every(m => m[num] >= 3);
+}
+
+function renderCricket() {
+  const g = state.game;
+  const cp = g.currentPlayer;
+  const cutThroat = state.mode === 'cutThroat';
+
+  const headers = state.players.map((p,i)=>`<th class="${i===cp?'active-col':''}">${esc(p)}</th>`).join('');
+  const rows = CRICKET_NUMS.map(num => {
+    const closed = isClosed(num);
+    const marks = state.players.map((p,i) => {
+      const m = g.marks[i][num];
+      const sym = m===0?'·':m===1?'/':m===2?'X':'✦';
+      return `<td><span class="cricket-mark ${m>=3?'closed':''}">${sym}</span></td>`;
+    }).join('');
+    return `<tr class="${closed?'row-closed':''}">
+      <td><span class="cricket-num">${num===25?'BULL':num}</span></td>
+      ${marks}
+    </tr>`;
+  }).join('');
+
+  const ptRow = state.players.map((p,i)=>`<td><span class="cricket-pts ${i===cp?'active':''}">${g.pts[i]}</span></td>`).join('');
+
+  return `
+    <div class="game-header">
+      <button class="back-btn" id="backBtn">←</button>
+      <div class="game-title">${cutThroat?'⚔️ Cut-Throat':'🦗 Cricket'}</div>
+      <div style="width:42px"></div>
+    </div>
+    <div style="background:rgba(255,255,255,.04);border-radius:14px;padding:12px;margin-bottom:12px;overflow-x:auto">
+      <table class="cricket-table">
+        <thead><tr><th></th>${headers}</tr></thead>
+        <tbody>${rows}<tr style="border-top:1px solid rgba(255,255,255,.08)"><td class="cricket-num" style="font-size:12px;color:#555">PTS</td>${ptRow}</tr></tbody>
+      </table>
+    </div>
+    ${numpadHtml()}`;
+}
+
+function bindCricket() {
+  document.getElementById('backBtn').onclick = () => { state.screen='setup'; render(); };
+  bindNumpad(
+    key => { addThrow(key); render(); },
+    undoCricket, () => { state.game.throws=[]; nextPlayer(); render(); }, confirmCricket
+  );
+}
+
+function confirmCricket() {
+  const g = state.game;
+  const cp = g.currentPlayer;
+  const cutThroat = state.mode === 'cutThroat';
+  const snapshot = {player:cp, marks:g.marks.map(m=>({...m})), pts:[...g.pts], throws:[...g.throws]};
+
+  g.throws.forEach(({label, pts}) => {
+    let num=null, mult=1;
+    if (label==='Bull') {num=25; mult=1;}
+    else if (label==='D-Bull') {num=25; mult=2;}
+    else {
+      const m=label.match(/^([SDT])(\d+)$/);
+      if(m){num=parseInt(m[2]);mult=m[1]==='S'?1:m[1]==='D'?2:3;}
+    }
+    if(!num||!CRICKET_NUMS.includes(num)) return;
+    const cur = g.marks[cp][num];
+    const toAdd = Math.min(3-cur, mult);
+    const overflow = mult - toAdd;
+    g.marks[cp][num] = Math.min(3, cur+mult);
+    if(overflow>0 && !isClosed(num)) {
+      if(!cutThroat) { g.pts[cp] += overflow*num; }
+      else { state.players.forEach((_,pi)=>{ if(pi!==cp && g.marks[pi][num]<3) g.pts[pi]+=overflow*num; }); }
+    }
+  });
+
+  g.history.push(snapshot);
+
+  // Win: all closed + best pts
+  const allClosed = pi => CRICKET_NUMS.every(n=>g.marks[pi][n]>=3);
+  const wi = state.players.findIndex((_,pi)=>{
+    if(!allClosed(pi)) return false;
+    if(cutThroat) return state.players.every((_,oi)=>oi===pi||g.pts[oi]>=g.pts[pi]);
+    return state.players.every((_,oi)=>oi===pi||g.pts[pi]>=g.pts[oi]);
+  });
+  if(wi>=0){state.screen='win';state.game.winner=state.players[wi];render();return;}
+  nextPlayer(); render();
+}
+
+function undoCricket() {
+  const g = state.game;
+  if(g.throws.length>0){g.throws.pop();render();return;}
+  if(!g.history.length) return;
+  const last = g.history.pop();
+  g.marks = last.marks;
+  g.pts = last.pts;
+  g.currentPlayer = last.player;
+  g.throws = [];
+  render();
+}
+
+// ── AROUND THE CLOCK ──────────────────────────────────────────────────────────
+function renderAroundClock() {
+  const g = state.game;
+  const cp = g.currentPlayer;
+  const progress = (g.targets[cp]-1)/21;
+  const n = state.players.length;
+  const gridClass = n>=3?'score-grid three':'score-grid';
+
+  const cards = state.players.map((p,i)=>`
+    <div class="score-card ${i===cp?'active':''}">
+      <div class="card-name">${i===cp?'▶ ':''}${esc(p)}</div>
+      <div class="card-score">${g.targets[i]>20?'BULL':g.targets[i]}</div>
+      <div class="card-sub">Ziel: ${g.targets[i]>20?'BULL':g.targets[i]}</div>
+    </div>`).join('');
+
+  return `
+    <div class="game-header">
+      <button class="back-btn" id="backBtn">←</button>
+      <div class="game-title">🕐 Around the Clock</div>
+      <div style="width:42px"></div>
+    </div>
+    <div class="${gridClass}">${cards}</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${progress*100}%"></div></div>
+    ${numpadHtml()}`;
+}
+
+function bindAroundClock() {
+  document.getElementById('backBtn').onclick = ()=>{state.screen='setup';render();};
+  bindNumpad(
+    key => {
+      const g = state.game;
+      if(g.throws.length>=3) return;
+      const t = keyToScore(key);
+      g.throws.push(t);
+      render();
+    },
+    ()=>{const g=state.game;if(g.throws.length>0){g.throws.pop();render();}},
+    ()=>{state.game.throws=[];nextPlayer();render();},
+    confirmAroundClock
+  );
+}
+
+function confirmAroundClock() {
+  const g = state.game;
+  const cp = g.currentPlayer;
+  let target = g.targets[cp];
+  const snapshot = {player:cp, oldTarget:target};
+
+  g.throws.forEach(({label}) => {
+    const m = label.match(/^[SDT](\d+)$/);
+    if(m && parseInt(m[1])===target) target = Math.min(target+1, 21);
+    if(target===21 && (label==='Bull'||label==='D-Bull')) target=22;
+  });
+
+  g.history.push(snapshot);
+  g.targets[cp] = target;
+
+  if(target===22){state.screen='win';state.game.winner=state.players[cp];render();return;}
+  nextPlayer(); render();
+}
+
+// ── HALFTIME ──────────────────────────────────────────────────────────────────
+function renderHalftime() {
+  const g = state.game;
+  const cp = g.currentPlayer;
+  const curRound = g.ROUNDS[g.roundIdx];
+  const n = state.players.length;
+  const gridClass = n>=3?'score-grid three':'score-grid';
+
+  const cards = state.players.map((p,i)=>{
+    const badges = g.roundData[i].map(r=>
+      `<span style="font-size:10px;background:${r.hit?'rgba(100,200,100,.12)':'rgba(255,80,80,.12)'};color:${r.hit?'#6dc':'#f66'};border-radius:4px;padding:1px 5px;font-family:'DM Mono',monospace">${r.hit?'+'+r.delta:'÷2'}</span>`
+    ).join(' ');
+    return `<div class="score-card ${i===cp?'active':''}">
+      <div class="card-name">${i===cp?'▶ ':''}${esc(p)}</div>
+      <div class="card-score">${g.scores[i]}</div>
+      <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px">${badges}</div>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="game-header">
+      <button class="back-btn" id="backBtn">←</button>
+      <div class="game-title">⏱️ Halftime</div>
+      <div style="width:42px"></div>
+    </div>
+    <div class="round-center">
+      <div class="round-label">RUNDE ${g.roundIdx+1}/${g.ROUNDS.length} · ZIEL</div>
+      <div class="round-target">${curRound.l}</div>
+      <div class="round-note">0 Treffer → Score wird halbiert!</div>
+    </div>
+    <div class="${gridClass}">${cards}</div>
+    ${numpadHtml()}`;
+}
+
+function bindHalftime() {
+  document.getElementById('backBtn').onclick = ()=>{state.screen='setup';render();};
+  bindNumpad(
+    key=>{addThrow(key);render();},
+    ()=>{const g=state.game;if(g.throws.length>0){g.throws.pop();render();}},
+    confirmHalftime, confirmHalftime
+  );
+}
+
+function confirmHalftime() {
+  const g = state.game;
+  const cp = g.currentPlayer;
+  const target = g.ROUNDS[g.roundIdx].t;
+  const hits = g.throws.filter(t => t.pts===target||t.pts===target*2||t.pts===target*3||
+    (target===25&&(t.pts===25||t.pts===50))||(target===50&&t.pts===50)).length;
+
+  const oldScore = g.scores[cp];
+  if(hits===0) { g.scores[cp] = Math.floor(g.scores[cp]/2); }
+  else { g.scores[cp] += hits * target; }
+  g.roundData[cp].push({hit:hits>0, delta:g.scores[cp]-oldScore});
+  g.throws = [];
+
+  if(cp+1 < state.players.length) {
+    g.currentPlayer++;
+  } else {
+    g.currentPlayer = 0;
+    if(g.roundIdx+1 >= g.ROUNDS.length) {
+      const max = Math.max(...g.scores);
+      state.screen='win'; state.game.winner=state.players[g.scores.indexOf(max)];
+      render(); return;
+    }
+    g.roundIdx++;
+  }
+  render();
+}
+
+// ── SHANGHAI ──────────────────────────────────────────────────────────────────
+function renderShanghai() {
+  const g = state.game;
+  const cp = g.currentPlayer;
+  const n = state.players.length;
+  const gridClass = n>=3?'score-grid three':'score-grid';
+
+  const cards = state.players.map((p,i)=>`
+    <div class="score-card ${i===cp?'active':''}">
+      <div class="card-name">${i===cp?'▶ ':''}${esc(p)}</div>
+      <div class="card-score">${g.scores[i]}</div>
+    </div>`).join('');
+
+  return `
+    <div class="game-header">
+      <button class="back-btn" id="backBtn">←</button>
+      <div class="game-title">🏙️ Shanghai</div>
+      <div style="width:42px"></div>
+    </div>
+    <div class="round-center">
+      <div class="round-label">RUNDE ${g.round}/7 · ZIEL</div>
+      <div class="round-target">${g.round}</div>
+      <div class="round-note">S${g.round} + D${g.round} + T${g.round} = 🏆 SHANGHAI!</div>
+    </div>
+    <div class="${gridClass}">${cards}</div>
+    ${numpadHtml()}`;
+}
+
+function bindShanghai() {
+  document.getElementById('backBtn').onclick = ()=>{state.screen='setup';render();};
+  bindNumpad(
+    key=>{addThrow(key);render();},
+    ()=>{const g=state.game;if(g.throws.length>0){g.throws.pop();render();}},
+    advanceShanghai, confirmShanghai
+  );
+}
+
+function confirmShanghai() {
+  const g = state.game;
+  const cp = g.currentPlayer;
+  const r = g.round;
+  const hits = g.throws.filter(t=>{const m=t.label.match(/^([SDT])(\d+)$/);return m&&parseInt(m[2])===r;});
+  const total = hits.reduce((a,t)=>a+t.pts,0);
+  const hasSingle = hits.some(t=>t.label===`S${r}`);
+  const hasDouble = hits.some(t=>t.label===`D${r}`);
+  const hasTriple = hits.some(t=>t.label===`T${r}`);
+  if(hasSingle&&hasDouble&&hasTriple){state.screen='win';state.game.winner=state.players[cp]+' (Shanghai!)';render();return;}
+  g.scores[cp]+=total;
+  advanceShanghai();
+}
+
+function advanceShanghai() {
+  const g = state.game;
+  g.throws = [];
+  if(g.currentPlayer+1 < state.players.length) {
+    g.currentPlayer++;
+  } else {
+    g.currentPlayer = 0;
+    if(g.round>=7){
+      const max=Math.max(...g.scores);
+      state.screen='win';state.game.winner=state.players[g.scores.indexOf(max)];
+      render();return;
+    }
+    g.round++;
+  }
+  render();
+}
+
+// ── KILLER ────────────────────────────────────────────────────────────────────
+function renderKiller() {
+  const g = state.game;
+  const cp = g.currentPlayer;
+
+  if(g.phase==='assign') {
+    const assigned = Object.entries(g.killerNums).map(([i,n])=>
+      `<span class="assigned-chip">${esc(state.players[i])}: ${n}</span>`).join('');
+    return `
+      <div class="game-header">
+        <button class="back-btn" id="backBtn">←</button>
+        <div class="game-title">💀 Killer</div>
+        <div style="width:42px"></div>
+      </div>
+      <div class="assign-center">
+        <div class="assign-title">ZAHL ZUWEISEN</div>
+        <div class="assign-player">${esc(state.players[cp])}</div>
+        <div class="assign-note">Wirf auf deine Zahl (Single)</div>
+      </div>
+      ${assigned ? `<div class="assigned-list">${assigned}</div>` : ''}
+      ${numpadHtml()}`;
+  }
+
+  const n = state.players.length;
+  const gridClass = n>=3?'score-grid three':'score-grid';
+  const cards = state.players.map((p,i)=>`
+    <div class="killer-card ${g.lives[i]===0?'eliminated':i===cp?'active':''}">
+      <div class="killer-name">${i===cp?'▶ ':''}${esc(p)} · #${g.killerNums[i]||'?'}</div>
+      <div class="lives-row">${[...Array(5)].map((_,li)=>`<span style="font-size:18px">${li<g.lives[i]?'❤️':'🖤'}</span>`).join('')}</div>
+      ${g.isKiller[i]?'<div class="killer-badge">💀 KILLER</div>':''}
+    </div>`).join('');
+
+  return `
+    <div class="game-header">
+      <button class="back-btn" id="backBtn">←</button>
+      <div class="game-title">💀 Killer</div>
+      <div style="width:42px"></div>
+    </div>
+    <div class="${gridClass}">${cards}</div>
+    ${numpadHtml()}`;
+}
+
+function bindKiller() {
+  document.getElementById('backBtn').onclick = ()=>{state.screen='setup';render();};
+  const g = state.game;
+  if(g.phase==='assign') {
+    bindNumpad(
+      key=>{
+        const m = (g.mod==='S'?'S':'')+(key.match(/^\d+$/)?key:'');
+        const n = parseInt(key);
+        if(!isNaN(n) && g.mod==='S' && !Object.values(g.killerNums).includes(n)) {
+          g.killerNums[g.currentPlayer] = n;
+          if(g.currentPlayer+1 < state.players.length) g.currentPlayer++;
+          else { g.currentPlayer=0; g.phase='play'; }
+          g.throws=[]; g.mod='S'; render();
+        }
+      },
+      ()=>{}, ()=>{}, ()=>{}
+    );
+  } else {
+    bindNumpad(
+      key=>{addThrow(key);render();},
+      ()=>{const g=state.game;if(g.throws.length>0){g.throws.pop();render();}},
+      advanceKiller, confirmKiller
+    );
+  }
+}
+
+function confirmKiller() {
+  const g = state.game;
+  const cp = g.currentPlayer;
+  g.throws.forEach(({label}) => {
+    const m = label.match(/^([SDT])(\d+)$/);
+    if(!m) return;
+    const [,mod,numStr]=m;
+    const num=parseInt(numStr);
+    const mult=mod==='S'?1:mod==='D'?2:3;
+    state.players.forEach((_,pi)=>{
+      if(g.killerNums[pi]===num) {
+        if(pi===cp && mod==='D' && !g.isKiller[pi]) { g.isKiller[pi]=true; }
+        else if(pi!==cp && g.isKiller[cp]) {
+          g.lives[pi] = Math.max(0, g.lives[pi]-mult);
+        }
+      }
+    });
+  });
+  const alive = state.players.map((_,i)=>i).filter(i=>g.lives[i]>0);
+  if(alive.length===1){state.screen='win';state.game.winner=state.players[alive[0]];render();return;}
+  advanceKiller();
+}
+
+function advanceKiller() {
+  const g = state.game;
+  g.throws=[];
+  let next = (g.currentPlayer+1)%state.players.length;
+  while(g.lives[next]===0) next=(next+1)%state.players.length;
+  g.currentPlayer=next;
+  render();
+}
+
+// ── WIN SCREEN ────────────────────────────────────────────────────────────────
+function renderWin() {
+  const g = state.game;
+  const statsHtml = g.stats ? state.players.map((p,i)=>`
+    <div class="stats-row">
+      <span>${esc(p)}</span>
+      <span>${g.stats[i].darts} Darts · Ø ${g.stats[i].rounds>0?(g.stats[i].total/g.stats[i].rounds).toFixed(1):'–'}</span>
+    </div>`).join('') : '';
+
+  return `
+    <div class="win-screen">
+      <div class="win-trophy">🏆</div>
+      <div class="win-label">GEWINNER</div>
+      <div class="win-name">${esc(g.winner)}</div>
+      ${statsHtml ? `<div style="margin-bottom:8px">${statsHtml}</div>` : ''}
+      <button class="new-game-btn" id="newGameBtn">🎯 NEUES SPIEL</button>
+    </div>`;
+}
+
+function bindWin() {
+  document.getElementById('newGameBtn').onclick = ()=>{state.screen='setup';render();};
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+render();
+</script>
+
+</body>
+</html>
